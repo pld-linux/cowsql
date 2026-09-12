@@ -1,3 +1,7 @@
+#
+# Conditional build:
+%bcond_without	tests		# do not perform "make check"
+#
 Summary:	Embeddable, replicated and fault tolerant SQL engine
 Name:		cowsql
 Version:	1.15.9
@@ -7,6 +11,7 @@ Group:		Libraries
 #Source0Download: https://github.com/cowsql/cowsql/releases
 Source0:	https://github.com/cowsql/cowsql/archive/v%{version}/%{name}-%{version}.tar.gz
 # Source0-md5:	cf46c3e372eaa2e06addb95ece4a9bd5
+Patch0:		cast.patch
 URL:		https://github.com/cowsql/cowsql
 BuildRequires:	autoconf >= 2.60
 BuildRequires:	automake >= 1:1.11
@@ -16,59 +21,66 @@ BuildRequires:	pkgconfig
 BuildRequires:	raft-devel >= 0.22.1
 BuildRequires:	sqlite3-devel >= 3.22.0
 Requires:	libuv >= 1.8.0
-Requires:	raft >= 0.18.0
+Requires:	raft >= 0.22.1
 Requires:	sqlite3 >= 3.22.0
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
-This package is a fork the dqlite C library (libdqlite), which can be
-used to expose a dqlite database over the network and replicate it
-across a cluster of peers, using the Raft algorithm.
+cowsql is a C library implementing an embeddable, replicated SQL
+database engine with high availability and automatic failover. It is a
+fork of dqlite and uses the Raft algorithm to replicate an SQLite
+database across a cluster of peers.
 
 %description -l pl.UTF-8
-Ten pakiet zawiera fork biblioteki C dqlite (libdqlite), którą można
-wykorzystywać do udostępnienia bazy danych dqlite przez sieć i
-replikować ją na klaster partnerów przy użyciu algorytmu Raft.
+cowsql to biblioteka C implementująca osadzalny, replikowany silnik
+bazodanowy SQL o wysokiej dostępności i automatycznym przełączaniu
+awaryjnym. Jest to fork biblioteki dqlite, wykorzystujący algorytm Raft
+do replikowania bazy SQLite na klastrze węzłów.
 
 %package devel
-Summary:	Header files for dqlite development
-Summary(pl.UTF-8):	Pliki nagłówkowe biblioteki dqlite
+Summary:	Header files for cowsql library
+Summary(pl.UTF-8):	Pliki nagłówkowe biblioteki cowsql
 Group:		Development/Libraries
 Requires:	%{name} = %{version}-%{release}
 Requires:	libuv-devel >= 1.8.0
-Requires:	raft-devel >= 0.14.0
+Requires:	raft-devel >= 0.22.1
 Requires:	sqlite3-devel >= 3.22.0
 
 %description devel
-This package contains development files for the dqlite library.
+Header files for cowsql library.
 
 %description devel -l pl.UTF-8
-Ten pakiet zawiera pliki nagłówkowe biblioteki dqlite.
+Pliki nagłówkowe biblioteki cowsql.
 
 %package static
-Summary:	Static dqlite library
-Summary(pl.UTF-8):	Statyczna biblioteka dqlite
+Summary:	Static cowsql library
+Summary(pl.UTF-8):	Statyczna biblioteka cowsql
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
 
 %description static
-This package contains static dqlite library.
+Static cowsql library.
 
 %description static -l pl.UTF-8
-Ten pakiet zawiera bibliotekę statyczną dqlite.
+Statyczna biblioteka cowsql.
 
 %prep
 %setup -q
+%patch -P0 -p1
 
 %build
 %{__libtoolize}
 %{__aclocal} -I m4
 %{__autoconf}
 %{__automake}
-CFLAGS="-Wno-error %{rpmcflags}" %configure \
+%configure \
 	--disable-silent-rules
 
 %{__make}
+
+%if %{with tests}
+%{__make} check
+%endif
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -77,7 +89,7 @@ rm -rf $RPM_BUILD_ROOT
 	DESTDIR=$RPM_BUILD_ROOT
 
 # obsoleted by pkg-config
-%{__rm} -rf $RPM_BUILD_ROOT%{_libdir}/libcowsql.la
+%{__rm} $RPM_BUILD_ROOT%{_libdir}/libcowsql.la
 
 %clean
 rm -rf $RPM_BUILD_ROOT
